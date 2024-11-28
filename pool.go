@@ -75,7 +75,6 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 	return MQPoolMap[mapKey], err
 }
 func (m *MQConnectionPool) Init() error {
-	gotool.FileLoger.Info("✔ MQ Init 开始执行")
 	// 整理服务地址
 	err := m.GetMQServerAddresses()
 	if err != nil {
@@ -89,17 +88,16 @@ func (m *MQConnectionPool) Init() error {
 	}
 	m.AddressesLen = addressesLen
 	m.Status = true
+	// 计算每个节点应该建立的连接数
+	if m.Capacity < m.AddressesLen {
+		m.Capacity = m.AddressesLen
+	}
 	// 首次启动
 	if m.InitTimes == 0 {
 		m.InitTimes++
 		m.InitFirst()
-		gotool.FileLoger.Info("✔ 连接池首次初始化完成")
 		return nil
 	} else {
-		// 从新计算每个节点应该建立的连接数
-		if m.Capacity < m.AddressesLen {
-			m.Capacity = m.AddressesLen
-		}
 		capacityForEveryServer := m.Capacity / m.AddressesLen
 		// 遍历各个节点的连接池
 		for channelKey := range m.Addresses {
@@ -159,7 +157,6 @@ func (m *MQConnectionPool) InitNewNode(channelKey string) {
 		}
 		m.Channels[channelKey] <- tcpConnection
 	}
-	gotool.Loger.Info("✔ 初始化连接池 : ", channelKey, " 完成")
 
 	// 监听错误连接并尝试修复
 	go func() {
