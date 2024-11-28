@@ -1,0 +1,48 @@
+.DS_Store
+*.DS_Store
+dist
+*dist
+dist/*
+dist-ssr
+*dist-ssr
+.local
+*.local
+.vscode
+*.vscode
+.idea
+*.idea
+# Binaries for programs and plugins
+main.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+# Dependency directories (remove the comment below to include it)
+# vendor/ 
+
+*.log
+*tmp
+
+*mq_logs
+*mq_logs/
+*mq_logs/*
+
+*run_logs*
+*run_logs/*
+
+*firstKVDatalogs*
+*firstKVDatalogs/
+*firstKVDatalogs/*
+
+.DS_Store
+*.DS_Store
+.vscode
+*.vscode
+.idea
+*.idea

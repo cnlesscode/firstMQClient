@@ -1,0 +1,58 @@
+package firstMQClient
+
+import (
+	"net"
+)
+
+type FirstMQAddr struct {
+	Addr     string
+	DateTime string
+}
+
+type FirstMQAddrs map[string]FirstMQAddr
+
+// FirstKV 消息结构体
+type FirstKVMessage struct {
+	Action string
+	Key    string
+	Data   FirstMQAddr
+}
+
+// MQ 消息结构体
+type Message struct {
+	Action        int
+	Topic         string
+	ConsumerGroup string
+	Data          any
+}
+
+// 响应消息结构体
+type ResponseMessage struct {
+	ErrCode int
+	Data    string
+}
+
+// TCP 连接对象结构体
+type TCPConnection struct {
+	MapKey string
+	Conn   net.Conn // TCP 连接指针
+	Addr   string   // TCP 服务 Address
+	Status bool     // 状态
+}
+
+// 连接池结构体
+type MQConnectionPool struct {
+	Key                  string
+	FirstKVAddr          string // FirstKV 地址
+	Addresses            FirstMQAddrs
+	AddressesLen         int                            // TCP 服务地址数量
+	Channels             map[string]chan *TCPConnection // 对应各服务器的连接池
+	Channel              chan *TCPConnection            // 总接池
+	Capacity             int                            // 连接池总容量
+	ConnNumber           map[string]int                 // 对应某个服务器应建立的连接数量
+	ConnDifferenceNumber map[string]int                 // 连接池数量与实际数量差值
+	MaxWaitTime          int                            // 最大等待时间
+	ErrorMessage         chan []byte                    // 错误消息临时记录通道
+	InitTimes            int                            // 节点巡查次数
+	Status               bool                           // 状态
+}
