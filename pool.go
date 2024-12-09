@@ -3,10 +3,9 @@ package firstMQClient
 import (
 	"encoding/json"
 	"errors"
+	"log"
 	"net"
 	"time"
-
-	"github.com/cnlesscode/gotool"
 )
 
 // 已有连接池 map
@@ -114,10 +113,10 @@ func (m *MQConnectionPool) Init() error {
 						tcpConnection, _ := m.NewAClientForPool(channelKey)
 						m.Channels[channelKey] <- tcpConnection
 					}
-					gotool.FileLoger.Info("✔ 新增连接 : ", channelKey, " 完成，新增数量 : ", m.ConnDifferenceNumber[channelKey])
+					log.Println("✔ 新增连接 : ", channelKey, " 完成，新增数量 : ", m.ConnDifferenceNumber[channelKey])
 					m.ConnDifferenceNumber[channelKey] = 0
 				} else if m.ConnDifferenceNumber[channelKey] < 0 {
-					gotool.FileLoger.Info("※ 需要减少连接 : ", channelKey, m.ConnDifferenceNumber[channelKey])
+					log.Println("※ 需要减少连接 : ", channelKey, m.ConnDifferenceNumber[channelKey])
 					for i := 0; i > m.ConnDifferenceNumber[channelKey]; i-- {
 						tcpConnection := <-m.Channel
 						if tcpConnection.Addr == m.Addresses[channelKey].Addr {
@@ -129,7 +128,7 @@ func (m *MQConnectionPool) Init() error {
 						}
 					}
 					m.ConnDifferenceNumber[channelKey] = 0
-					gotool.FileLoger.Info("✔ 减少连接 : ", channelKey, " 完成")
+					log.Println("✔ 减少连接 : ", channelKey, " 完成")
 				}
 			}
 		}
@@ -220,7 +219,7 @@ func (m *MQConnectionPool) GetMQServerAddresses() error {
 			}
 			_, err := m.FirstKVSendMessage(message)
 			if err != nil {
-				gotool.FileLoger.Error("MQServer ", mqServer.Addr, " 验证失败, 已将其移除.")
+				log.Println("MQServer ", mqServer.Addr, " 验证失败, 已将其移除.")
 			}
 			delete(m.Addresses, mqServer.Addr)
 		} else {

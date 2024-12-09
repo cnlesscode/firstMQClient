@@ -2,12 +2,11 @@ package firstMQClient
 
 import (
 	"fmt"
+	"log"
 	"strconv"
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/cnlesscode/gotool"
 )
 
 // 测试命令 : go test -v -run=TestMain
@@ -113,6 +112,6 @@ func ProductMessage(addr string, topicName string) {
 		}
 		wg.Wait()
 	}
-	gotool.Loger.Info("耗时: ", time.Now().UnixMilli()-timeStart, "毫秒")
+	log.Println("耗时: ", time.Now().UnixMilli()-timeStart, "毫秒")
 	time.Sleep(time.Second * 10)
 }
