@@ -6,6 +6,8 @@ import (
 	"log"
 	"net"
 	"time"
+
+	"github.com/cnlesscode/firstKV"
 )
 
 // 已有连接池 map
@@ -196,7 +198,7 @@ func (m *MQConnectionPool) GetAConnection() (*TCPConnection, error) {
 
 // 获取 MQ 服务列表
 func (m *MQConnectionPool) GetMQServerAddresses() error {
-	res, err := m.FirstKVSendMessage(FirstKVMessage{
+	res, err := m.FirstKVSendMessage(firstKV.ReceiveMessage{
 		Action: "get mqServers",
 		Key:    "firstMQServers",
 	})
@@ -212,10 +214,10 @@ func (m *MQConnectionPool) GetMQServerAddresses() error {
 		connIn, err := net.DialTimeout("tcp", mqServer.Addr, time.Second*3)
 		// 验证失败将其移除
 		if err != nil {
-			message := FirstKVMessage{
+			message := firstKV.ReceiveMessage{
 				Action: "remove mqServer",
 				Key:    "firstMQServers",
-				Data:   FirstMQAddr{Addr: mqServer.Addr},
+				Data:   firstKV.FirstMQAddr{Addr: mqServer.Addr},
 			}
 			_, err := m.FirstKVSendMessage(message)
 			if err != nil {

@@ -3,6 +3,8 @@ package firstMQClient
 import (
 	"encoding/json"
 	"errors"
+
+	"github.com/cnlesscode/gotool"
 )
 
 // 记录错误消息到缓存通道
@@ -58,21 +60,20 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 		return nil, errors.New("TCP 服务错误")
 	}
 
-	// 发送
-	_, err := st.Conn.Write(message)
+	// ------ 发送消息 ------
+	err := gotool.WriteTCPResponse(st.Conn, message)
 	if err != nil {
 		st.RecordErrorMessage(message)
 		st.Status = false
 		return nil, err
 	}
-	// 接收
-	buf := make([]byte, 524288)
-	n, err := st.Conn.Read(buf)
+
+	// ------ 接收消息 ------
+	buf, err := gotool.ReadTCPResponse(st.Conn)
 	if err != nil {
 		st.RecordErrorMessage(message)
 		st.Status = false
 		return nil, err
 	}
-	buf = buf[0:n]
 	return buf, nil
 }

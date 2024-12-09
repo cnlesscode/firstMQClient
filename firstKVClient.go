@@ -4,9 +4,12 @@ import (
 	"encoding/json"
 	"net"
 	"time"
+
+	"github.com/cnlesscode/firstKV"
+	"github.com/cnlesscode/gotool"
 )
 
-func (m *MQConnectionPool) FirstKVSendMessage(msg FirstKVMessage) (ResponseMessage, error) {
+func (m *MQConnectionPool) FirstKVSendMessage(msg firstKV.ReceiveMessage) (ResponseMessage, error) {
 	response := ResponseMessage{}
 	// 整理服务地址
 	conn, err := net.DialTimeout("tcp", m.FirstKVAddr, time.Second*5)
@@ -14,20 +17,19 @@ func (m *MQConnectionPool) FirstKVSendMessage(msg FirstKVMessage) (ResponseMessa
 		return response, err
 	}
 	defer conn.Close()
-	messageST := FirstKVMessage{
-		Action: "get mqServers",
-		Key:    "firstMQServers",
-		Data:   FirstMQAddr{},
-	}
-	message, _ := json.Marshal(messageST)
-	conn.Write(message)
-	// 读取消息
-	buf := make([]byte, 102400)
-	n, err := conn.Read(buf)
+
+	message, err := json.Marshal(msg)
 	if err != nil {
 		return response, err
 	}
-	err = json.Unmarshal(buf[0:n], &response)
+	gotool.WriteTCPResponse(conn, message)
+
+	// 02. 读取消息
+	buf, err := gotool.ReadTCPResponse(conn)
+	if err != nil {
+		return response, err
+	}
+	err = json.Unmarshal(buf, &response)
 	if err != nil {
 		return response, err
 	}

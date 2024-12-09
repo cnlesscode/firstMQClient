@@ -2,21 +2,9 @@ package firstMQClient
 
 import (
 	"net"
+
+	"github.com/cnlesscode/firstKV"
 )
-
-type FirstMQAddr struct {
-	Addr     string
-	DateTime string
-}
-
-type FirstMQAddrs map[string]FirstMQAddr
-
-// FirstKV 消息结构体
-type FirstKVMessage struct {
-	Action string
-	Key    string
-	Data   FirstMQAddr
-}
 
 // MQ 消息结构体
 type Message struct {
@@ -44,7 +32,7 @@ type TCPConnection struct {
 type MQConnectionPool struct {
 	Key                  string
 	FirstKVAddr          string // FirstKV 地址
-	Addresses            FirstMQAddrs
+	Addresses            firstKV.FirstMQAddrs
 	AddressesLen         int                            // TCP 服务地址数量
 	Channels             map[string]chan *TCPConnection // 对应各服务器的连接池
 	Channel              chan *TCPConnection            // 总接池
