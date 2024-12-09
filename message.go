@@ -35,6 +35,9 @@ func (st *MQConnectionPool) Send(message Message) (ResponseMessage, error) {
 	if err != nil {
 		return response, err
 	}
+	if response.ErrCode != 0 {
+		return response, errors.New(response.Data)
+	}
 	return response, nil
 }
 
