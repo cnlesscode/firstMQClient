@@ -54,6 +54,7 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 			MQPoolMap[st.MapKey].Channels[st.Addr] <- st
 		}
 	}()
+
 	if st.Conn == nil {
 		st.RecordErrorMessage(message)
 		st.Status = false
@@ -73,7 +74,9 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 	if err != nil {
 		st.RecordErrorMessage(message)
 		st.Status = false
+		st.Conn.Close()
 		return nil, err
 	}
+
 	return buf, nil
 }

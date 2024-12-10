@@ -29,5 +29,6 @@ func (m *MQConnectionPool) NewAClientForPool(addr string) (*TCPConnection, error
 
 // 关闭连接
 func (st *TCPConnection) Close() {
+	st.Status = false
 	st.Conn.Close()
 }
