@@ -11,7 +11,7 @@ type Message struct {
 	Action        int
 	Topic         string
 	ConsumerGroup string
-	Data          any
+	Data          []byte
 }
 
 // 响应消息结构体

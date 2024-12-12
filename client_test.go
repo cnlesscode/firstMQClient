@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"runtime"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -39,7 +40,7 @@ func TestProductAMessage(t *testing.T) {
 	response, err := mqPool.Send(Message{
 		Action: 1,
 		Topic:  "test",
-		Data:   "a test message 2 ...",
+		Data:   []byte("a test message ..."),
 	})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
@@ -65,23 +66,23 @@ func TestProductMessages(t *testing.T) {
 		}
 	}()
 	// 循环批量生产消息
-	for i := 0; i < 1000; i++ {
+	for i := 0; i < 100; i++ {
 		wg := sync.WaitGroup{}
 		// 开始1w个协程，并发写入
-		for i := 0; i < 100000; i++ {
+		for ii := 1; ii <= 10000; ii++ {
+			n := i*10000 + ii
 			wg.Add(1)
-			go func() {
+			go func(iin int) {
 				defer wg.Done()
 				mqPool.Send(Message{
 					Action: 1,
 					Topic:  "test",
-					Data:   "a test message 2 ...",
+					Data:   []byte(strconv.Itoa(iin)),
 				})
-			}()
+			}(n)
 		}
 		wg.Wait()
 		fmt.Printf("第%v次写入完成\n", i+1)
-		time.Sleep(time.Second * 5)
 	}
 	// 死循环
 	for {
@@ -95,18 +96,23 @@ func TestConsumeMessage(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
+	mp := make(map[string]int, 0)
+	step := 1
 	for {
 		response, err := mqPool.Send(Message{
 			Action:        2,
 			Topic:         "test",
-			ConsumerGroup: "test",
+			ConsumerGroup: "default",
 		})
 		if err != nil {
 			fmt.Printf("err: %v\n", err)
+			fmt.Printf("len(mp): %v\n", len(mp))
+			time.Sleep(time.Second * 10)
 		} else {
-			fmt.Printf(response.Data)
+			fmt.Printf("step: %v\n", step)
+			mp[response.Data] = 1
+			step++
 		}
-		time.Sleep(time.Second)
 	}
 }
 
@@ -119,7 +125,7 @@ func TestCreateConsumeGroup(t *testing.T) {
 	response, err := mqPool.Send(Message{
 		Action:        7,
 		Topic:         "test",
-		ConsumerGroup: "test",
+		ConsumerGroup: "default",
 	})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
