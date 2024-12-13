@@ -17,8 +17,8 @@ var MQPoolMap map[string]*MQConnectionPool = make(map[string]*MQConnectionPool)
 // 建立连接池 :
 // firstKVAddr  FirstKV 服务地址,
 // capacity 连接池容量,
-// maxWaitTime 获取连接时最大等待时间, 单位 秒
-func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQConnectionPool, error) {
+// purpose 用途，由于单例区分
+func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, error) {
 	mapKey := firstKVAddr + purpose
 	_, ok := MQPoolMap[mapKey]
 	// 已有连接池直接返回
@@ -36,7 +36,6 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 		Capacity:             capacity,
 		ConnNumber:           make(map[string]int),
 		ConnDifferenceNumber: make(map[string]int),
-		MaxWaitTime:          maxWaitTime,
 		ErrorMessage:         make(chan []byte, 1000000),
 		InitTimes:            0,
 		Status:               false,

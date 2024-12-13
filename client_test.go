@@ -18,7 +18,7 @@ var addr string = "192.168.31.100:8803"
 // go test -v -run=TestCreateATopic
 func TestCreateATopic(t *testing.T) {
 	// 创建话题
-	mqPool, err := New(addr, 2, 5, "CreateTopic")
+	mqPool, err := New(addr, 2, "CreateTopic")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -33,7 +33,7 @@ func TestCreateATopic(t *testing.T) {
 // 生产消息 - 单条
 // go test -v -run=TestProductAMessage
 func TestProductAMessage(t *testing.T) {
-	mqPool, err := New(addr, 1, 5, "ProductAMessage")
+	mqPool, err := New(addr, 1, "ProductAMessage")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -55,7 +55,7 @@ func TestProductAMessage(t *testing.T) {
 // 生产消息 - 并发多条
 // go test -v -run=TestProductMessages
 func TestProductMessages(t *testing.T) {
-	mqPool, err := New(addr, 1000, 5, "ProductMessages")
+	mqPool, err := New(addr, 1000, "ProductMessages")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -92,7 +92,7 @@ func TestProductMessages(t *testing.T) {
 
 // go test -v -run=TestConsumeMessage
 func TestConsumeMessage(t *testing.T) {
-	mqPool, err := New(addr, 100, 5, "ConsumeMessage")
+	mqPool, err := New(addr, 100, "ConsumeMessage")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -119,7 +119,7 @@ func TestConsumeMessage(t *testing.T) {
 
 // go test -v -run=TestCreateConsumeGroup
 func TestCreateConsumeGroup(t *testing.T) {
-	mqPool, err := New(addr, 1, 5, "ConsumeMessage")
+	mqPool, err := New(addr, 1, "ConsumeMessage")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -137,7 +137,7 @@ func TestCreateConsumeGroup(t *testing.T) {
 
 // go test -v -run=TestServerList
 func TestServerList(t *testing.T) {
-	mqPool, err := New(addr, 1, 5, "ConsumeMessage")
+	mqPool, err := New(addr, 1, "ConsumeMessage")
 	if err != nil {
 		panic(err.Error())
 	}
