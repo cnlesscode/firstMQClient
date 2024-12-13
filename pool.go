@@ -47,7 +47,7 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 		for {
 			time.Sleep(time.Minute)
 			MQPoolMap[mapKey].Init()
-			log.Println("✔ 更新服务列表")
+			log.Println("… 更新服务列表")
 		}
 	}()
 
