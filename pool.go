@@ -42,10 +42,13 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 		Status:               false,
 	}
 
-	// 间隔3分钟刷新一次服务器列表
+	// 间隔1分钟刷新一次服务器列表
 	go func() {
-		time.Sleep(time.Minute * 3)
-		MQPoolMap[mapKey].Init()
+		for {
+			time.Sleep(time.Minute)
+			MQPoolMap[mapKey].Init()
+			log.Println("✔ 更新服务列表")
+		}
 	}()
 
 	err := MQPoolMap[mapKey].Init()
