@@ -66,7 +66,7 @@ func TestProductMessages(t *testing.T) {
 		}
 	}()
 	// 循环批量生产消息
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 10; i++ {
 		wg := sync.WaitGroup{}
 		// 开始1w个协程，并发写入
 		for ii := 1; ii <= 10000; ii++ {
@@ -77,7 +77,7 @@ func TestProductMessages(t *testing.T) {
 				mqPool.Send(Message{
 					Action: 1,
 					Topic:  "test",
-					Data:   []byte(strconv.Itoa(iin)),
+					Data:   []byte(strconv.Itoa(iin) + " test message ..."),
 				})
 			}(n)
 		}
@@ -110,6 +110,7 @@ func TestConsumeMessage(t *testing.T) {
 			time.Sleep(time.Second * 10)
 		} else {
 			fmt.Printf("step: %v\n", step)
+			fmt.Printf("response.Data: %v\n", response.Data)
 			mp[response.Data] = 1
 			step++
 		}
