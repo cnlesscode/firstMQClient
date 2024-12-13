@@ -42,29 +42,25 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 		Status:               false,
 	}
 
-	// 间隔1分钟刷新一次服务器列表
+	// 1. 间隔30秒刷新一次服务器列表
 	go func() {
 		for {
-			time.Sleep(time.Minute)
+			time.Sleep(time.Second * 30)
 			MQPoolMap[mapKey].Init()
-			log.Println("… 更新服务列表")
 		}
 	}()
 
-	err := MQPoolMap[mapKey].Init()
-	if err != nil {
-		return MQPoolMap[mapKey], err
-	}
-
-	// 监听错误消息并自动发送
-	go func() {
+	// 2. 监听错误消息并自动发送
+	go func(mapKeyIn string) {
 		for {
 			select {
-			case message := <-MQPoolMap[mapKey].ErrorMessage:
-				conn, err := MQPoolMap[mapKey].GetAConnection()
+			case message := <-MQPoolMap[mapKeyIn].ErrorMessage:
+				conn, err := MQPoolMap[mapKeyIn].GetAConnection()
+				// 如果有错再放回错误连消息chi
 				if err != nil {
+					time.Sleep(time.Second)
 					select {
-					case MQPoolMap[mapKey].ErrorMessage <- message:
+					case MQPoolMap[mapKeyIn].ErrorMessage <- message:
 					default:
 					}
 				} else {
@@ -74,7 +70,13 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 				time.Sleep(time.Second * 3)
 			}
 		}
-	}()
+	}(mapKey)
+
+	// 3. 初始化连接池
+	err := MQPoolMap[mapKey].Init()
+	if err != nil {
+		return MQPoolMap[mapKey], err
+	}
 
 	// 心跳消息
 	// go func() {
@@ -205,10 +207,10 @@ func (m *MQConnectionPool) GetAConnection() (*TCPConnection, error) {
 		return nil, errors.New("无法获取有效连接 E200100")
 	}
 	select {
-	case <-time.After(time.Second * time.Duration(m.MaxWaitTime)):
-		return nil, errors.New("无法获取有效连接 E200101")
 	case tcpConnection := <-m.Channel:
 		return tcpConnection, nil
+	default:
+		return nil, errors.New("无法获取有效连接 E200101")
 	}
 }
 
