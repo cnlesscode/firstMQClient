@@ -9,6 +9,14 @@ import (
 
 // 记录错误消息到缓存通道
 func RecordErrorMessage(message []byte, k string) {
+	msg := Message{}
+	err := json.Unmarshal(message, &msg)
+	if err != nil {
+		return
+	}
+	if msg.Action != 1 && msg.Action != 3 && msg.Action != 7 {
+		return
+	}
 	select {
 	case MQPoolMap[k].ErrorMessage <- message:
 		return
