@@ -8,9 +8,9 @@ import (
 )
 
 // 记录错误消息到缓存通道
-func (m *TCPConnection) RecordErrorMessage(message []byte) {
+func RecordErrorMessage(message []byte, k string) {
 	select {
-	case MQPoolMap[m.MapKey].ErrorMessage <- message:
+	case MQPoolMap[k].ErrorMessage <- message:
 		return
 	default:
 		return
@@ -20,15 +20,17 @@ func (m *TCPConnection) RecordErrorMessage(message []byte) {
 // 发送消息
 func (st *MQConnectionPool) Send(message Message) (ResponseMessage, error) {
 	response := ResponseMessage{}
-	// 获取一个可用连接
-	mqClient, err := st.GetAConnection()
-	if err != nil {
-		return response, err
-	}
 	messageByte, err := json.Marshal(message)
 	if err != nil {
 		return response, err
 	}
+	// 获取一个可用连接
+	mqClient, err := st.GetAConnection()
+	if err != nil {
+		RecordErrorMessage(messageByte, st.Key)
+		return response, err
+	}
+
 	res, err := mqClient.SendBytes(messageByte)
 	if err != nil {
 		return response, err
@@ -40,6 +42,7 @@ func (st *MQConnectionPool) Send(message Message) (ResponseMessage, error) {
 	if response.ErrCode != 0 {
 		return response, errors.New(response.Data)
 	}
+
 	return response, nil
 }
 
@@ -56,7 +59,7 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 	}()
 
 	if st.Conn == nil {
-		st.RecordErrorMessage(message)
+		RecordErrorMessage(message, st.MapKey)
 		st.Status = false
 		return nil, errors.New("TCP 服务错误")
 	}
@@ -64,7 +67,7 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 	// ------ 发送消息 ------
 	err := gotool.WriteTCPResponse(st.Conn, message)
 	if err != nil {
-		st.RecordErrorMessage(message)
+		RecordErrorMessage(message, st.MapKey)
 		st.Status = false
 		return nil, err
 	}
@@ -72,7 +75,7 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 	// ------ 接收消息 ------
 	buf, err := gotool.ReadTCPResponse(st.Conn)
 	if err != nil {
-		st.RecordErrorMessage(message)
+		RecordErrorMessage(message, st.MapKey)
 		st.Status = false
 		st.Conn.Close()
 		return nil, err

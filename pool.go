@@ -42,9 +42,9 @@ func New(firstKVAddr string, capacity int, maxWaitTime int, purpose string) (*MQ
 		Status:               false,
 	}
 
-	// 间隔5分钟刷新一次服务器列表
+	// 间隔3分钟刷新一次服务器列表
 	go func() {
-		time.Sleep(time.Minute * 5)
+		time.Sleep(time.Minute * 3)
 		MQPoolMap[mapKey].Init()
 	}()
 
@@ -184,9 +184,10 @@ func (m *MQConnectionPool) InitNewNode(channelKey string) {
 				if err == nil {
 					m.Channel <- tcpConnection
 				} else {
-					// 将无法修复的坏连接给回自己的池子, 延迟5秒后再次尝试
+					// 将无法修复的坏连接给回自己的池子
+					// 延迟1秒后再次尝试
 					m.Channels[channelKey] <- tcpConnection
-					time.Sleep(time.Second * 5)
+					time.Sleep(time.Second)
 				}
 			} else {
 				m.Channel <- tcpConnection
