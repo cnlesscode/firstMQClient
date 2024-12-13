@@ -67,7 +67,7 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 		}
 	}()
 
-	if st.Conn == nil {
+	if st.Conn == nil || !st.Status {
 		RecordErrorMessage(message, st.MapKey)
 		st.Status = false
 		return nil, errors.New("TCP 服务错误")
@@ -85,10 +85,10 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 
 	// ------ 接收消息 ------
 	buf, err := gotool.ReadTCPResponse(st.Conn)
+
 	// 连接被关闭
 	if err != nil {
 		log.Panicln("连接被关闭")
-		RecordErrorMessage(message, st.MapKey)
 		st.Status = false
 		st.Conn.Close()
 		st.Conn = nil
