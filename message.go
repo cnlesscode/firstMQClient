@@ -3,7 +3,6 @@ package firstMQClient
 import (
 	"encoding/json"
 	"errors"
-	"log"
 
 	"github.com/cnlesscode/gotool"
 )
@@ -88,7 +87,6 @@ func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
 
 	// 连接被关闭
 	if err != nil {
-		log.Println(err.Error())
 		st.Status = false
 		st.Conn.Close()
 		st.Conn = nil
