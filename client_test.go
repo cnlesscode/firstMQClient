@@ -157,3 +157,19 @@ func TestServerList(t *testing.T) {
 		}
 	}
 }
+
+// go test -v -run=TestTopicList
+func TestTopicList(t *testing.T) {
+	mqPool, err := New(addr, 1, "test")
+	if err != nil {
+		panic(err.Error())
+	}
+	response, err := mqPool.Send(Message{
+		Action: 4,
+	})
+	if err != nil {
+		fmt.Printf("err: %v\n", err)
+	} else {
+		fmt.Printf("response.Data: %v\n", response.Data)
+	}
+}
