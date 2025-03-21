@@ -32,7 +32,7 @@ type TCPConnection struct {
 type MQConnectionPool struct {
 	Key                  string
 	FirstKVAddr          string // FirstKV 地址
-	Addresses            firstKV.FirstMQAddrs
+	Addresses            map[string]firstKV.Item
 	AddressesLen         int                            // TCP 服务地址数量
 	Channels             map[string]chan *TCPConnection // 对应各服务器的连接池
 	Channel              chan *TCPConnection            // 总接池

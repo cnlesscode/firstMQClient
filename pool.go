@@ -137,7 +137,7 @@ func (m *MQConnectionPool) Init() error {
 					log.Println("※ 需要减少连接 : ", channelKey, m.ConnDifferenceNumber[channelKey])
 					for i := 0; i > m.ConnDifferenceNumber[channelKey]; i-- {
 						tcpConnection := <-m.Channel
-						if tcpConnection.Addr == m.Addresses[channelKey].Addr {
+						if tcpConnection.Addr == channelKey {
 							if tcpConnection.Conn != nil {
 								tcpConnection.Conn.Close()
 							}
@@ -215,10 +215,18 @@ func (m *MQConnectionPool) GetAConnection() (*TCPConnection, error) {
 
 // 获取 MQ 服务列表
 func (m *MQConnectionPool) GetMQServerAddresses() error {
-	res, err := m.FirstKVSendMessage(firstKV.ReceiveMessage{
-		Action: "get mqServers",
-		Key:    "firstMQServers",
-	})
+	firstKVConn, err := net.DialTimeout("tcp", m.FirstKVAddr, time.Second*5)
+	if err != nil {
+		return err
+	}
+	res, err := firstKV.Send(
+		firstKVConn,
+		firstKV.ReceiveMessage{
+			Action:  "get",
+			MainKey: "firstMQServers",
+		},
+		false,
+	)
 	if err != nil {
 		return err
 	}
@@ -227,20 +235,24 @@ func (m *MQConnectionPool) GetMQServerAddresses() error {
 		return err
 	}
 	// 验证 MQ 服务
-	for _, mqServer := range m.Addresses {
-		connIn, err := net.DialTimeout("tcp", mqServer.Addr, time.Second*3)
+	for k, address := range m.Addresses {
+		addr := address.Data.(string)
+		connIn, err := net.DialTimeout("tcp", addr, time.Second*3)
 		// 验证失败将其移除
 		if err != nil {
-			message := firstKV.ReceiveMessage{
-				Action: "remove mqServer",
-				Key:    "firstMQServers",
-				Data:   firstKV.FirstMQAddr{Addr: mqServer.Addr},
+			delete(m.Addresses, k)
+			_, err = firstKV.Send(
+				firstKVConn,
+				firstKV.ReceiveMessage{
+					MainKey: "firstMQServers",
+					Action:  "removeItem",
+					ItemKey: addr,
+				},
+				true,
+			)
+			if err == nil {
+				log.Println("MQServer ", address, " 验证失败, 已将其移除.")
 			}
-			_, err := m.FirstKVSendMessage(message)
-			if err != nil {
-				log.Println("MQServer ", mqServer.Addr, " 验证失败, 已将其移除.")
-			}
-			delete(m.Addresses, mqServer.Addr)
 		} else {
 			connIn.Close()
 		}

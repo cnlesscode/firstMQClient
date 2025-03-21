@@ -8,17 +8,15 @@ import (
 	"sync"
 	"testing"
 	"time"
-
-	"github.com/cnlesscode/firstKV"
 )
 
-var addr string = "192.168.31.100:8803"
+var addr string = "192.168.0.188:8803"
 
 // 创建话题
 // go test -v -run=TestCreateATopic
 func TestCreateATopic(t *testing.T) {
 	// 创建话题
-	mqPool, err := New(addr, 2, "CreateTopic")
+	mqPool, err := New(addr, 5, "CreateTopic")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -126,7 +124,7 @@ func TestCreateConsumeGroup(t *testing.T) {
 	response, err := mqPool.Send(Message{
 		Action:        7,
 		Topic:         "test",
-		ConsumerGroup: "default",
+		ConsumerGroup: "t001",
 	})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
@@ -137,7 +135,7 @@ func TestCreateConsumeGroup(t *testing.T) {
 
 // go test -v -run=TestServerList
 func TestServerList(t *testing.T) {
-	mqPool, err := New(addr, 1, "ConsumeMessage")
+	mqPool, err := New(addr, 1, "TestServerList")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -147,20 +145,19 @@ func TestServerList(t *testing.T) {
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	} else {
-		fmt.Printf("response.Data: %v\n", response.Data)
-		list := firstKV.FirstMQAddrs{}
+		list := make(map[string]string, 0)
 		err := json.Unmarshal([]byte(response.Data), &list)
 		if err == nil {
 			fmt.Printf("list: %v\n", list)
 		} else {
-			fmt.Printf("not ok")
+			fmt.Printf("err: %v\n", err)
 		}
 	}
 }
 
 // go test -v -run=TestTopicList
 func TestTopicList(t *testing.T) {
-	mqPool, err := New(addr, 1, "test")
+	mqPool, err := New(addr, 10, "test")
 	if err != nil {
 		panic(err.Error())
 	}
