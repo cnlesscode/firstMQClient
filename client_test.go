@@ -10,7 +10,7 @@ import (
 	"time"
 )
 
-var addr string = "192.168.0.188:8803"
+var addr string = "192.168.31.188:8801"
 
 // 创建话题
 // go test -v -run=TestCreateATopic
@@ -94,25 +94,23 @@ func TestConsumeMessage(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
-	mp := make(map[string]int, 0)
-	step := 1
-	for {
-		response, err := mqPool.Send(Message{
-			Action:        2,
-			Topic:         "test",
-			ConsumerGroup: "default",
-		})
-		if err != nil {
-			fmt.Printf("err: %v\n", err)
-			fmt.Printf("len(mp): %v\n", len(mp))
-			time.Sleep(time.Second * 10)
-		} else {
-			fmt.Printf("step: %v\n", step)
-			fmt.Printf("response.Data: %v\n", response.Data)
-			mp[response.Data] = 1
-			step++
-		}
+	// 启动 100个协程
+	var wg sync.WaitGroup
+	for i := 0; i < 100; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			for {
+				response, _ := mqPool.Send(Message{
+					Action:        2,
+					Topic:         "test",
+					ConsumerGroup: "consumer02",
+				})
+				fmt.Printf("response: %v\n", response.Data)
+			}
+		}()
 	}
+	wg.Wait()
 }
 
 // go test -v -run=TestCreateConsumeGroup
