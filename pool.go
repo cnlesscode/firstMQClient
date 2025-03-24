@@ -27,12 +27,14 @@ func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, e
 	}
 	// 新建连接池
 	MQPoolMap[mapKey] = &MQConnectionPool{
-		Key:                  mapKey,
-		FirstKVAddr:          firstKVAddr,
-		Addresses:            nil,
-		AddressesLen:         0,
-		Channel:              make(chan *TCPConnection, capacity+1000),
-		Channels:             make(map[string]chan *TCPConnection),
+		Key:          mapKey,
+		FirstKVAddr:  firstKVAddr,
+		Addresses:    nil,
+		AddressesLen: 0,
+		// 总连接池 [ 缓存管道 ]
+		AllConnections: make(chan *MQConnection, capacity+1000),
+		// 对应服务器节点的连接池
+		MQConnections:        make(map[string]chan *MQConnection),
 		Capacity:             capacity,
 		ConnNumber:           make(map[string]int),
 		ConnDifferenceNumber: make(map[string]int),
@@ -41,15 +43,13 @@ func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, e
 		Status:               false,
 	}
 
-	// 1. 间隔30秒刷新一次服务器列表
-	go func() {
-		for {
-			time.Sleep(time.Second * 30)
-			MQPoolMap[mapKey].Init()
-		}
-	}()
+	// 初始化连接池
+	err := MQPoolMap[mapKey].Init()
+	if err != nil {
+		return MQPoolMap[mapKey], err
+	}
 
-	// 2. 监听错误消息并自动发送
+	// 监听错误消息并自动发送
 	go func(mapKeyIn string) {
 		for {
 			select {
@@ -71,22 +71,13 @@ func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, e
 		}
 	}(mapKey)
 
-	// 3. 初始化连接池
-	err := MQPoolMap[mapKey].Init()
-	if err != nil {
-		return MQPoolMap[mapKey], err
-	}
-
-	// 心跳消息
-	// go func() {
-	// 	time.Sleep(time.Second * 3)
-	// 	for {
-	// 		MQPoolMap[mapKey].Send(Message{
-	// 			Action: 6,
-	// 		})
-	// 		time.Sleep(time.Second)
-	// 	}
-	// }()
+	// 间隔30秒刷新一次服务器列表
+	go func() {
+		for {
+			time.Sleep(time.Second * 30)
+			MQPoolMap[mapKey].Init()
+		}
+	}()
 
 	return MQPoolMap[mapKey], err
 }
@@ -119,7 +110,7 @@ func (m *MQConnectionPool) Init() error {
 		// 遍历各个节点的连接池
 		for channelKey := range m.Addresses {
 			// 新的节点
-			if _, ok := m.Channels[channelKey]; !ok {
+			if _, ok := m.MQConnections[channelKey]; !ok {
 				m.ConnNumber[channelKey] = capacityForEveryServer
 				m.InitNewNode(channelKey)
 			} else {
@@ -129,20 +120,20 @@ func (m *MQConnectionPool) Init() error {
 				if m.ConnDifferenceNumber[channelKey] > 0 {
 					for i := 0; i < m.ConnDifferenceNumber[channelKey]; i++ {
 						tcpConnection, _ := m.NewAClientForPool(channelKey)
-						m.Channels[channelKey] <- tcpConnection
+						m.MQConnections[channelKey] <- tcpConnection
 					}
 					log.Println("✔ 新增连接 : ", channelKey, " 完成，新增数量 : ", m.ConnDifferenceNumber[channelKey])
 					m.ConnDifferenceNumber[channelKey] = 0
 				} else if m.ConnDifferenceNumber[channelKey] < 0 {
 					log.Println("※ 需要减少连接 : ", channelKey, m.ConnDifferenceNumber[channelKey])
 					for i := 0; i > m.ConnDifferenceNumber[channelKey]; i-- {
-						tcpConnection := <-m.Channel
+						tcpConnection := <-m.AllConnections
 						if tcpConnection.Addr == channelKey {
 							if tcpConnection.Conn != nil {
 								tcpConnection.Conn.Close()
 							}
 						} else {
-							m.Channel <- tcpConnection
+							m.AllConnections <- tcpConnection
 						}
 					}
 					m.ConnDifferenceNumber[channelKey] = 0
@@ -165,48 +156,49 @@ func (m *MQConnectionPool) InitFirst() {
 
 // 初始化新节点服务器的连接
 func (m *MQConnectionPool) InitNewNode(channelKey string) {
-	m.Channels[channelKey] = make(chan *TCPConnection, m.ConnNumber[channelKey]+10)
+	m.MQConnections[channelKey] = make(chan *MQConnection, m.ConnNumber[channelKey]+10)
 	m.ConnDifferenceNumber[channelKey] = 0
 	for i := 0; i < m.ConnNumber[channelKey]; i++ {
 		tcpConnection, err := m.NewAClientForPool(channelKey)
 		if err != nil {
 			continue
 		}
-		m.Channels[channelKey] <- tcpConnection
+		m.MQConnections[channelKey] <- tcpConnection
 	}
 
-	// 监听错误连接并尝试修复
+	// 从节点连接池中获取连接，填充进总连接池
+	// 同时检查错误连接，并尝试修复
 	go func() {
 		var err error
 		for {
-			tcpConnection := <-m.Channels[channelKey]
+			tcpConnection := <-m.MQConnections[channelKey]
 			if !tcpConnection.Status {
 				if tcpConnection.Conn != nil {
 					tcpConnection.Conn.Close()
 				}
 				tcpConnection, err = m.NewAClientForPool(channelKey)
 				if err == nil {
-					m.Channel <- tcpConnection
+					m.AllConnections <- tcpConnection
 				} else {
 					// 将无法修复的坏连接给回自己的池子
 					// 延迟1秒后再次尝试
-					m.Channels[channelKey] <- tcpConnection
+					m.MQConnections[channelKey] <- tcpConnection
 					time.Sleep(time.Second)
 				}
 			} else {
-				m.Channel <- tcpConnection
+				m.AllConnections <- tcpConnection
 			}
 		}
 	}()
 }
 
 // 获取一个连接
-func (m *MQConnectionPool) GetAConnection() (*TCPConnection, error) {
+func (m *MQConnectionPool) GetAConnection() (*MQConnection, error) {
 	if !m.Status {
 		return nil, errors.New("无法获取有效连接 E200100")
 	}
 	select {
-	case tcpConnection := <-m.Channel:
+	case tcpConnection := <-m.AllConnections:
 		return tcpConnection, nil
 	default:
 		return nil, errors.New("无法获取有效连接 E200101")

@@ -7,8 +7,8 @@ import (
 
 // 初始化一个TCP连接
 // 非连接池模式
-func NewAClient(addr string) (*TCPConnection, error) {
-	tcpConnection := &TCPConnection{
+func NewAClient(addr string) (*MQConnection, error) {
+	tcpConnection := &MQConnection{
 		Addr: addr,
 	}
 	conn, err := net.DialTimeout("tcp", addr, time.Second*3)
@@ -21,14 +21,14 @@ func NewAClient(addr string) (*TCPConnection, error) {
 	return tcpConnection, nil
 }
 
-func (m *MQConnectionPool) NewAClientForPool(addr string) (*TCPConnection, error) {
+func (m *MQConnectionPool) NewAClientForPool(addr string) (*MQConnection, error) {
 	tcpConnection, err := NewAClient(addr)
 	tcpConnection.MapKey = m.Key
 	return tcpConnection, err
 }
 
 // 关闭连接
-func (st *TCPConnection) Close() {
+func (st *MQConnection) Close() {
 	st.Status = false
 	st.Conn.Close()
 }

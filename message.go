@@ -55,14 +55,14 @@ func (st *MQConnectionPool) Send(message Message) (ResponseMessage, error) {
 }
 
 // send []byte
-func (st *TCPConnection) SendBytes(message []byte) ([]byte, error) {
+func (st *MQConnection) SendBytes(message []byte) ([]byte, error) {
 	defer func() {
 		// 如果是新建的连接关闭连接
 		// 如果是来自连接池的连接填充回连接池
 		if st.MapKey == "" {
 			st.Conn.Close()
 		} else {
-			MQPoolMap[st.MapKey].Channels[st.Addr] <- st
+			MQPoolMap[st.MapKey].MQConnections[st.Addr] <- st
 		}
 	}()
 

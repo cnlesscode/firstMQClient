@@ -16,11 +16,15 @@ var addr string = "192.168.31.188:8801"
 // go test -v -run=TestCreateATopic
 func TestCreateATopic(t *testing.T) {
 	// 创建话题
-	mqPool, err := New(addr, 5, "CreateTopic")
+	mqPool, err := New(addr, 1, "CreateTopic")
 	if err != nil {
 		panic(err.Error())
 	}
-	response, err := mqPool.Send(Message{Action: 3, Topic: "test"})
+	// 延迟等待连接池填充
+	// 生成环境无需延迟
+	time.Sleep(time.Second * 1)
+	// 创建话题
+	response, err := mqPool.Send(Message{Action: 3, Topic: "topic1"})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	} else {
@@ -35,18 +39,19 @@ func TestProductAMessage(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
+	// 延迟等待连接池填充
+	// 生成环境无需延迟
+	time.Sleep(time.Second * 1)
+	//
 	response, err := mqPool.Send(Message{
 		Action: 1,
-		Topic:  "test",
+		Topic:  "topic1",
 		Data:   []byte("a test message ..."),
 	})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	} else {
 		fmt.Printf(response.Data)
-	}
-	for {
-		time.Sleep(time.Second * 5)
 	}
 }
 
@@ -72,19 +77,30 @@ func TestProductMessages(t *testing.T) {
 			wg.Add(1)
 			go func(iin int) {
 				defer wg.Done()
-				mqPool.Send(Message{
+				_, err = mqPool.Send(Message{
 					Action: 1,
-					Topic:  "test",
+					Topic:  "topic1",
 					Data:   []byte(strconv.Itoa(iin) + " test message ..."),
 				})
+				if err != nil {
+					fmt.Printf("err: %v\n", err)
+				}
 			}(n)
 		}
 		wg.Wait()
 		fmt.Printf("第%v次写入完成\n", i+1)
 	}
-	// 死循环
+	// 写入失败的消息会被记录到缓存通道中
+	// 为什么会失败？
+	// 客户端连接池为空，没有连接可用，这样的失败操作会被记录，客户端会自动再次提交
+	// 客户端会自动重试
 	for {
-		time.Sleep(time.Second * 5)
+		errCount := len(MQPoolMap[addr+"ProductMessages"].ErrorMessage)
+		fmt.Printf("errCount: %v\n", errCount)
+		if errCount <= 0 {
+			break
+		}
+		time.Sleep(time.Second * 1)
 	}
 }
 
@@ -103,8 +119,8 @@ func TestConsumeMessage(t *testing.T) {
 			for {
 				response, _ := mqPool.Send(Message{
 					Action:        2,
-					Topic:         "test",
-					ConsumerGroup: "consumer02",
+					Topic:         "topic1",
+					ConsumerGroup: "default",
 				})
 				fmt.Printf("response: %v\n", response.Data)
 			}
@@ -119,6 +135,10 @@ func TestCreateConsumeGroup(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
+	// 延迟等待连接池填充
+	// 生成环境无需延迟
+	time.Sleep(time.Second * 1)
+	//
 	response, err := mqPool.Send(Message{
 		Action:        7,
 		Topic:         "test",
@@ -137,6 +157,10 @@ func TestServerList(t *testing.T) {
 	if err != nil {
 		panic(err.Error())
 	}
+	// 延迟等待连接池填充
+	// 生成环境无需延迟
+	time.Sleep(time.Second * 1)
+	//
 	response, err := mqPool.Send(Message{
 		Action: 10,
 	})
