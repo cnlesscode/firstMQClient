@@ -3,6 +3,7 @@ package firstMQClient
 import (
 	"encoding/json"
 	"errors"
+	"time"
 
 	"github.com/cnlesscode/gotool"
 )
@@ -33,10 +34,18 @@ func (st *MQConnectionPool) Send(message Message) (ResponseMessage, error) {
 		return response, err
 	}
 	// 获取一个可用连接
+	getConnectionCount := 0
+GetAConnectionLoop:
 	mqClient, err := st.GetAConnection()
 	if err != nil {
-		RecordErrorMessage(messageByte, st.Key)
-		return response, err
+		if getConnectionCount < 3 {
+			getConnectionCount++
+			time.Sleep(time.Millisecond * 100)
+			goto GetAConnectionLoop
+		} else {
+			RecordErrorMessage(messageByte, st.Key)
+			return response, err
+		}
 	}
 
 	res, err := mqClient.SendBytes(messageByte)

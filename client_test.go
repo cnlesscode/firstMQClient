@@ -10,13 +10,14 @@ import (
 	"time"
 )
 
-var addr string = "192.168.31.188:8801"
+var addr string = "192.168.31.188:8885"
+var listenAddr string = "192.168.31.188:8886"
 
 // 创建话题
 // go test -v -run=TestCreateATopic
 func TestCreateATopic(t *testing.T) {
 	// 创建话题
-	mqPool, err := New(addr, 1, "CreateTopic")
+	mqPool, err := New(addr, 1, "CreateTopic", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -24,7 +25,7 @@ func TestCreateATopic(t *testing.T) {
 	// 生成环境无需延迟
 	time.Sleep(time.Second * 1)
 	// 创建话题
-	response, err := mqPool.Send(Message{Action: 3, Topic: "topic1"})
+	response, err := mqPool.Send(Message{Action: 3, Topic: "defalut"})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
 	} else {
@@ -35,7 +36,7 @@ func TestCreateATopic(t *testing.T) {
 // 生产消息 - 单条
 // go test -v -run=TestProductAMessage
 func TestProductAMessage(t *testing.T) {
-	mqPool, err := New(addr, 1, "ProductAMessage")
+	mqPool, err := New(addr, 1, "ProductAMessage", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -45,7 +46,7 @@ func TestProductAMessage(t *testing.T) {
 	//
 	response, err := mqPool.Send(Message{
 		Action: 1,
-		Topic:  "topic1",
+		Topic:  "defalut",
 		Data:   []byte("a test message ..."),
 	})
 	if err != nil {
@@ -58,7 +59,7 @@ func TestProductAMessage(t *testing.T) {
 // 生产消息 - 并发多条
 // go test -v -run=TestProductMessages
 func TestProductMessages(t *testing.T) {
-	mqPool, err := New(addr, 1000, "ProductMessages")
+	mqPool, err := New(addr, 1000, "ProductMessages", listenAddr)
 	if err != nil {
 		panic(err.Error())
 	}
@@ -69,22 +70,19 @@ func TestProductMessages(t *testing.T) {
 		}
 	}()
 	// 循环批量生产消息
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 100; i++ {
 		wg := sync.WaitGroup{}
 		// 开始1w个协程，并发写入
 		for ii := 1; ii <= 10000; ii++ {
-			n := i*10000 + ii
+			n := i*100000 + ii
 			wg.Add(1)
 			go func(iin int) {
 				defer wg.Done()
 				_, err = mqPool.Send(Message{
 					Action: 1,
-					Topic:  "topic1",
+					Topic:  "defalut",
 					Data:   []byte(strconv.Itoa(iin) + " test message ..."),
 				})
-				if err != nil {
-					fmt.Printf("err: %v\n", err)
-				}
 			}(n)
 		}
 		wg.Wait()
@@ -106,7 +104,7 @@ func TestProductMessages(t *testing.T) {
 
 // go test -v -run=TestConsumeMessage
 func TestConsumeMessage(t *testing.T) {
-	mqPool, err := New(addr, 100, "ConsumeMessage")
+	mqPool, err := New(addr, 100, "ConsumeMessage", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -119,7 +117,7 @@ func TestConsumeMessage(t *testing.T) {
 			for {
 				response, _ := mqPool.Send(Message{
 					Action:        2,
-					Topic:         "topic1",
+					Topic:         "defalut",
 					ConsumerGroup: "default",
 				})
 				fmt.Printf("response: %v\n", response.Data)
@@ -131,7 +129,7 @@ func TestConsumeMessage(t *testing.T) {
 
 // go test -v -run=TestCreateConsumeGroup
 func TestCreateConsumeGroup(t *testing.T) {
-	mqPool, err := New(addr, 1, "ConsumeMessage")
+	mqPool, err := New(addr, 1, "ConsumeMessage", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -141,8 +139,8 @@ func TestCreateConsumeGroup(t *testing.T) {
 	//
 	response, err := mqPool.Send(Message{
 		Action:        7,
-		Topic:         "test",
-		ConsumerGroup: "t001",
+		Topic:         "defalut",
+		ConsumerGroup: "consumer01",
 	})
 	if err != nil {
 		fmt.Printf("err: %v\n", err)
@@ -153,7 +151,7 @@ func TestCreateConsumeGroup(t *testing.T) {
 
 // go test -v -run=TestServerList
 func TestServerList(t *testing.T) {
-	mqPool, err := New(addr, 1, "TestServerList")
+	mqPool, err := New(addr, 1, "TestServerList", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -179,7 +177,7 @@ func TestServerList(t *testing.T) {
 
 // go test -v -run=TestTopicList
 func TestTopicList(t *testing.T) {
-	mqPool, err := New(addr, 10, "test")
+	mqPool, err := New(addr, 10, "test", "")
 	if err != nil {
 		panic(err.Error())
 	}
@@ -190,5 +188,17 @@ func TestTopicList(t *testing.T) {
 		fmt.Printf("err: %v\n", err)
 	} else {
 		fmt.Printf("response.Data: %v\n", response.Data)
+	}
+}
+
+// 测试监听
+// go test -v -run=TestListen
+func TestListen(t *testing.T) {
+	_, err := New(addr, 100, "Listen", listenAddr)
+	if err != nil {
+		panic(err.Error())
+	}
+	for {
+		time.Sleep(time.Second * 5)
 	}
 }

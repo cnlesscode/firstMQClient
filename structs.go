@@ -2,8 +2,6 @@ package firstMQClient
 
 import (
 	"net"
-
-	"github.com/cnlesscode/firstKV"
 )
 
 // MQ 消息结构体
@@ -31,8 +29,8 @@ type MQConnection struct {
 // 连接池结构体
 type MQConnectionPool struct {
 	Key                  string
-	FirstKVAddr          string // FirstKV 地址
-	Addresses            map[string]firstKV.Item
+	ServerFindAddr       string // ServerFind 地址
+	Addresses            map[string]any
 	AddressesLen         int                           // TCP 服务地址数量
 	MQConnections        map[string]chan *MQConnection // 对应各服务器的连接池
 	AllConnections       chan *MQConnection            // 总连接池，存放所有连接

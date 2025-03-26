@@ -1,13 +1,14 @@
 package firstMQClient
 
 import (
-	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
-	"github.com/cnlesscode/firstKV"
+	"github.com/cnlesscode/serverFinder"
 )
 
 // 已有连接池 map
@@ -15,11 +16,11 @@ import (
 var MQPoolMap map[string]*MQConnectionPool = make(map[string]*MQConnectionPool)
 
 // 建立连接池 :
-// firstKVAddr  FirstKV 服务地址,
+// ServerFinderAddr  ServerFinder 服务地址,
 // capacity 连接池容量,
 // purpose 用途，由于单例区分
-func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, error) {
-	mapKey := firstKVAddr + purpose
+func New(ServerFinderAddr string, capacity int, purpose, listenAddr string) (*MQConnectionPool, error) {
+	mapKey := ServerFinderAddr + purpose
 	_, ok := MQPoolMap[mapKey]
 	// 已有连接池直接返回
 	if ok {
@@ -27,10 +28,10 @@ func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, e
 	}
 	// 新建连接池
 	MQPoolMap[mapKey] = &MQConnectionPool{
-		Key:          mapKey,
-		FirstKVAddr:  firstKVAddr,
-		Addresses:    nil,
-		AddressesLen: 0,
+		Key:            mapKey,
+		ServerFindAddr: ServerFinderAddr,
+		Addresses:      nil,
+		AddressesLen:   0,
 		// 总连接池 [ 缓存管道 ]
 		AllConnections: make(chan *MQConnection, capacity+1000),
 		// 对应服务器节点的连接池
@@ -43,51 +44,76 @@ func New(firstKVAddr string, capacity int, purpose string) (*MQConnectionPool, e
 		Status:               false,
 	}
 
+	// 创建监听
+	if listenAddr != "" {
+		serverFinder.Listen(listenAddr, "firstMQServers", func(message map[string]any) {
+			fmt.Printf("message: %v\n", message)
+			if len(message) < 1 {
+				return
+			}
+			MQPoolMap[mapKey].Init(message)
+		})
+	}
+
 	// 初始化连接池
-	err := MQPoolMap[mapKey].Init()
+	err := MQPoolMap[mapKey].Init(nil)
 	if err != nil {
 		return MQPoolMap[mapKey], err
 	}
 
 	// 监听错误消息并自动发送
 	go func(mapKeyIn string) {
+		time.Sleep(time.Second * 3)
 		for {
-			select {
-			case message := <-MQPoolMap[mapKeyIn].ErrorMessage:
-				conn, err := MQPoolMap[mapKeyIn].GetAConnection()
-				// 如果有错再放回错误连消息chi
-				if err != nil {
-					time.Sleep(time.Second)
-					select {
-					case MQPoolMap[mapKeyIn].ErrorMessage <- message:
-					default:
-					}
-				} else {
-					conn.SendBytes(message)
-				}
-			default:
-				time.Sleep(time.Second * 3)
+			errorMessagesCount := len(MQPoolMap[mapKeyIn].ErrorMessage)
+			if errorMessagesCount < 1 {
+				time.Sleep(time.Second)
+				continue
 			}
+			// 启动对应连接数数量的协程重发错误消息
+			var wg sync.WaitGroup
+			for i := 0; i < MQPoolMap[mapKeyIn].Capacity; i++ {
+				wg.Add(1)
+				go func(mapKeyIn string) {
+					defer wg.Done()
+					select {
+					case message := <-MQPoolMap[mapKeyIn].ErrorMessage:
+						conn, err := MQPoolMap[mapKeyIn].GetAConnection()
+						// 如果有错再放回错误连消息chi
+						if err != nil {
+							select {
+							case MQPoolMap[mapKeyIn].ErrorMessage <- message:
+								return
+							default:
+								return
+							}
+						} else {
+							conn.SendBytes(message)
+						}
+					default:
+						return
+					}
+				}(mapKeyIn)
+			}
+			wg.Wait()
+			continue
 		}
 	}(mapKey)
-
-	// 间隔30秒刷新一次服务器列表
-	go func() {
-		for {
-			time.Sleep(time.Second * 30)
-			MQPoolMap[mapKey].Init()
-		}
-	}()
 
 	return MQPoolMap[mapKey], err
 }
 
-func (m *MQConnectionPool) Init() error {
-	// 整理服务地址
-	err := m.GetMQServerAddresses()
-	if err != nil {
-		m.Status = false
-		return errors.New("无可用服务 E10001")
+func (m *MQConnectionPool) Init(addrs map[string]any) error {
+	if addrs == nil {
+		// 整理服务地址
+		err := m.GetMQServerAddresses()
+		if err != nil {
+			m.Status = false
+			return errors.New("无可用服务 E10001")
+		}
+	} else {
+		m.Addresses = addrs
+		fmt.Printf("\"----\": %v\n", "----")
 	}
 	addressesLen := len(m.Addresses)
 	if addressesLen < 1 {
@@ -115,7 +141,9 @@ func (m *MQConnectionPool) Init() error {
 				m.InitNewNode(channelKey)
 			} else {
 				// 已有节点
+				fmt.Printf("\"已有节点\": %v\n", "已有节点")
 				m.ConnDifferenceNumber[channelKey] = capacityForEveryServer - m.ConnNumber[channelKey]
+				fmt.Printf("m.ConnDifferenceNumber[channelKey]: %v\n", m.ConnDifferenceNumber[channelKey])
 				m.ConnNumber[channelKey] = capacityForEveryServer
 				if m.ConnDifferenceNumber[channelKey] > 0 {
 					for i := 0; i < m.ConnDifferenceNumber[channelKey]; i++ {
@@ -156,6 +184,7 @@ func (m *MQConnectionPool) InitFirst() {
 
 // 初始化新节点服务器的连接
 func (m *MQConnectionPool) InitNewNode(channelKey string) {
+	fmt.Printf("\"InitNewNode\": %v\n", "InitNewNode")
 	m.MQConnections[channelKey] = make(chan *MQConnection, m.ConnNumber[channelKey]+10)
 	m.ConnDifferenceNumber[channelKey] = 0
 	for i := 0; i < m.ConnNumber[channelKey]; i++ {
@@ -207,13 +236,13 @@ func (m *MQConnectionPool) GetAConnection() (*MQConnection, error) {
 
 // 获取 MQ 服务列表
 func (m *MQConnectionPool) GetMQServerAddresses() error {
-	firstKVConn, err := net.DialTimeout("tcp", m.FirstKVAddr, time.Second*5)
+	serverFinderConn, err := net.DialTimeout("tcp", m.ServerFindAddr, time.Second*5)
 	if err != nil {
 		return err
 	}
-	res, err := firstKV.Send(
-		firstKVConn,
-		firstKV.ReceiveMessage{
+	res, err := serverFinder.Send(
+		serverFinderConn,
+		serverFinder.ReceiveMessage{
 			Action:  "get",
 			MainKey: "firstMQServers",
 		},
@@ -222,28 +251,31 @@ func (m *MQConnectionPool) GetMQServerAddresses() error {
 	if err != nil {
 		return err
 	}
-	err = json.Unmarshal([]byte(res.Data), &m.Addresses)
-	if err != nil {
-		return err
+	if res.ErrorCode != 0 {
+		return errors.New(res.Data.(string))
+	}
+	var ok bool = false
+	m.Addresses, ok = res.Data.(map[string]any)
+	if !ok {
+		return errors.New("服务器列表获取失败，E200102")
 	}
 	// 验证 MQ 服务
-	for k, address := range m.Addresses {
-		addr := address.Data.(string)
-		connIn, err := net.DialTimeout("tcp", addr, time.Second*3)
+	for k := range m.Addresses {
+		connIn, err := net.DialTimeout("tcp", k, time.Second*3)
 		// 验证失败将其移除
 		if err != nil {
 			delete(m.Addresses, k)
-			_, err = firstKV.Send(
-				firstKVConn,
-				firstKV.ReceiveMessage{
+			_, err = serverFinder.Send(
+				serverFinderConn,
+				serverFinder.ReceiveMessage{
 					MainKey: "firstMQServers",
 					Action:  "removeItem",
-					ItemKey: addr,
+					ItemKey: k,
 				},
 				true,
 			)
 			if err == nil {
-				log.Println("MQServer ", address, " 验证失败, 已将其移除.")
+				log.Println("MQServer ", k, " 验证失败, 已将其移除.")
 			}
 		} else {
 			connIn.Close()

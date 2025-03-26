@@ -1,4 +1,6 @@
-github.com/cnlesscode/firstKV v1.1.6 h1:I+nJM3tSQIo8dk+Ok4wX98xH4p2kcS7+B/HlFCXJuC4=
-github.com/cnlesscode/firstKV v1.1.6/go.mod h1:61y7Y55RbRqjjcTlbSUjvgBj1jslbd7ohUuZ4PW4ZfY=
-github.com/cnlesscode/gotool v0.0.3 h1:ZVBy0uEOvKQeS57APOiJAWHg1V7dztY1iU/HwIv5hzE=
-github.com/cnlesscode/gotool v0.0.3/go.mod h1:KQhP9OZRzebXFDa2SJBsxcenNcIjJ7562rCs4HQMvJk=
+github.com/cnlesscode/gotool v0.0.6 h1:YVMMr9DHOTIR52+6v6TNfKYSQdzI8lT7FA+OhT8FGAY=
+github.com/cnlesscode/gotool v0.0.6/go.mod h1:KQhP9OZRzebXFDa2SJBsxcenNcIjJ7562rCs4HQMvJk=
+github.com/cnlesscode/serverFinder v1.0.2 h1:5BsqstWGOIMIpTQhE+WqHOcqRj+OK2EdePpehHJ6JP4=
+github.com/cnlesscode/serverFinder v1.0.2/go.mod h1:9ePlwhqUw1AtNabq4JQ+x1o5EDa7Fu0aJMyxhuw5fhU=
+github.com/gorilla/websocket v1.5.3 h1:saDtZ6Pbx/0u+bgYQ3q96pZgCzfhKXGPqt7kZ72aNNg=
+github.com/gorilla/websocket v1.5.3/go.mod h1:YR8l580nyteQvAITg2hZ9XVh4b55+EU/adAjf1fMHhE=
