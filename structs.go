@@ -26,7 +26,7 @@ type MQConnection struct {
 	Status bool     // 状态
 }
 
-// 连接池结构体
+// 总连接池结构体
 type MQConnectionPool struct {
 	Key                  string
 	ServerFindAddr       string // ServerFind 地址
@@ -38,6 +38,5 @@ type MQConnectionPool struct {
 	ConnNumber           map[string]int                // 对应某个服务器应建立的连接数量
 	ConnDifferenceNumber map[string]int                // 连接池数量与实际数量差值
 	ErrorMessage         chan []byte                   // 错误消息临时记录通道
-	InitTimes            int                           // 节点巡查次数
-	Status               bool                          // 状态
+	ServerStatus         map[string]bool               // 各服务器节点状态
 }
